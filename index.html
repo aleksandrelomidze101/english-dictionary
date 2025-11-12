@@ -5,6 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>English Dictionary - A1 Elementary Level</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref, set, onValue, remove } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDzR98RZOjAy4MDKqM6jfYYL_HvLkMfDho",
+            authDomain: "english-dictionary-915aa.firebaseapp.com",
+            databaseURL: "https://english-dictionary-915aa-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "english-dictionary-915aa",
+            storageBucket: "english-dictionary-915aa.firebasestorage.app",
+            messagingSenderId: "903752983791",
+            appId: "1:903752983791:web:0c5aa74b30cd3463c3271a"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        window.db = getDatabase(app);
+        window.dbRef = ref;
+        window.dbSet = set;
+        window.dbOnValue = onValue;
+        window.dbRemove = remove;
+    </script>
+    
     <style>
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
@@ -42,6 +66,44 @@
         <span class="text-2xl">📚</span>
     </button>
 
+    <!-- Secret Code Modal -->
+    <div id="secretCodeModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="mr-2">🔑</span>
+                Secret Code
+            </h2>
+            <p class="text-gray-600 mb-6">შეიყვანეთ თქვენი უნიკალური კოდი რომ სინქრონიზდეს ისტორია ყველა მოწყობილობაზე.</p>
+            
+            <input 
+                type="text" 
+                id="secretCodeInput" 
+                placeholder="შეიყვანეთ 6-ნიშნა კოდი..." 
+                class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 mb-4 text-center text-lg font-mono"
+                maxlength="6"
+            >
+            
+            <div class="flex gap-3">
+                <button 
+                    onclick="saveSecretCode()" 
+                    class="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-blue-600 hover:to-purple-700 transition-all"
+                >
+                    შენახვა
+                </button>
+                <button 
+                    onclick="generateSecretCode()" 
+                    class="flex-1 bg-gray-200 text-gray-700 px-6 py-3 rounded-xl font-semibold hover:bg-gray-300 transition-all"
+                >
+                    🎲 შექმნა
+                </button>
+            </div>
+            
+            <p class="text-xs text-gray-500 mt-4 text-center">
+                ეს კოდი გჭირდებათ სხვა მოწყობილობაზეც შესაყვანად
+            </p>
+        </div>
+    </div>
+
     <!-- History Sidebar -->
     <div id="historySidebar" class="fixed top-0 right-0 h-full w-80 bg-white shadow-2xl transform translate-x-full transition-transform duration-300 z-40 overflow-y-auto">
         <div class="p-6">
@@ -56,6 +118,19 @@
                 >
                     ✕
                 </button>
+            </div>
+            
+            <div class="mb-4 bg-blue-50 rounded-lg p-3">
+                <p class="text-xs text-gray-600 mb-2">🔑 თქვენი კოდი:</p>
+                <div class="flex items-center justify-between">
+                    <code id="displaySecretCode" class="text-sm font-mono font-bold text-blue-600">------</code>
+                    <button 
+                        onclick="showSecretCodeModal()" 
+                        class="text-xs text-blue-600 hover:text-blue-800 font-semibold"
+                    >
+                        შეცვლა
+                    </button>
+                </div>
             </div>
             
             <div class="mb-4 flex justify-between items-center">
@@ -181,10 +256,20 @@
     </div>
 
     <script>
-        // Load history on page load
-        window.addEventListener('DOMContentLoaded', () => {
-            updateHistoryDisplay();
+        let userSecretCode = localStorage.getItem('secretCode');
+        let syncEnabled = false;
 
+        // Initialize Firebase sync when page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            if (!userSecretCode) {
+                showSecretCodeModal();
+            } else {
+                initializeFirebaseSync();
+                updateSecretCodeDisplay();
+            }
+            
+            updateHistoryDisplay();
+            
             // Check if word is in URL parameter
             const urlParams = new URLSearchParams(window.location.search);
             const wordFromUrl = urlParams.get('word') || urlParams.get('q');
@@ -195,6 +280,69 @@
             }
         });
 
+        function showSecretCodeModal() {
+            document.getElementById('secretCodeModal').classList.remove('hidden');
+        }
+
+        function generateSecretCode() {
+            const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+            document.getElementById('secretCodeInput').value = code;
+        }
+
+        function saveSecretCode() {
+            const input = document.getElementById('secretCodeInput').value.trim();
+            if (input.length < 4) {
+                alert('კოდი უნდა იყოს მინიმუმ 4 სიმბოლო');
+                return;
+            }
+            
+            userSecretCode = input.toUpperCase();
+            localStorage.setItem('secretCode', userSecretCode);
+            document.getElementById('secretCodeModal').classList.add('hidden');
+            
+            // Initialize Firebase sync with new code
+            initializeFirebaseSync();
+            updateSecretCodeDisplay();
+            
+            // Migrate local history to Firebase
+            migrateLocalToFirebase();
+        }
+
+        function updateSecretCodeDisplay() {
+            document.getElementById('displaySecretCode').textContent = userSecretCode || '------';
+        }
+
+        function initializeFirebaseSync() {
+            if (!userSecretCode || !window.db) return;
+            
+            syncEnabled = true;
+            const historyRef = window.dbRef(window.db, `users/${userSecretCode}/history`);
+            
+            // Listen for changes from Firebase
+            window.dbOnValue(historyRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    const historyArray = Object.values(data).sort((a, b) => 
+                        new Date(b.timestamp) - new Date(a.timestamp)
+                    );
+                    localStorage.setItem('wordHistory', JSON.stringify(historyArray));
+                    updateHistoryDisplay();
+                }
+            });
+        }
+
+        function migrateLocalToFirebase() {
+            const localHistory = JSON.parse(localStorage.getItem('wordHistory') || '[]');
+            if (localHistory.length > 0 && userSecretCode && window.db) {
+                const historyRef = window.dbRef(window.db, `users/${userSecretCode}/history`);
+                const historyObj = {};
+                localHistory.forEach((item, index) => {
+                    historyObj[`word_${Date.now()}_${index}`] = item;
+                });
+                window.dbSet(historyRef, historyObj);
+            }
+        }
+
         async function searchWord() {
             const wordInput = document.getElementById('wordInput');
             const word = wordInput.value.trim().toLowerCase();
@@ -203,6 +351,11 @@
                 showError('Please enter a word to search.');
                 return;
             }
+
+            // Update URL without reloading page
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('word', word);
+            window.history.pushState({}, '', newUrl);
 
             // Show loading, hide results and errors
             document.getElementById('loadingSpinner').classList.remove('hidden');
@@ -271,24 +424,26 @@
 
         // History management functions
         function saveToHistory(word, data) {
-            let history = JSON.parse(localStorage.getItem('wordHistory') || '[]');
-            
-            // Remove if word already exists
-            history = history.filter(item => item.word !== word);
-            
-            // Add to beginning of array
-            history.unshift({
+            const newItem = {
                 word: word,
                 definition: data.definition,
                 examples: data.examples,
                 timestamp: new Date().toISOString()
-            });
+            };
             
-            // Keep only last 50 words
-            history = history.slice(0, 50);
-            
-            localStorage.setItem('wordHistory', JSON.stringify(history));
-            updateHistoryDisplay();
+            // If Firebase sync is enabled, save to Firebase
+            if (syncEnabled && userSecretCode && window.db) {
+                const itemRef = window.dbRef(window.db, `users/${userSecretCode}/history/word_${Date.now()}`);
+                window.dbSet(itemRef, newItem);
+            } else {
+                // Fallback to localStorage only
+                let history = JSON.parse(localStorage.getItem('wordHistory') || '[]');
+                history = history.filter(item => item.word !== word);
+                history.unshift(newItem);
+                history = history.slice(0, 50);
+                localStorage.setItem('wordHistory', JSON.stringify(history));
+                updateHistoryDisplay();
+            }
         }
 
         function updateHistoryDisplay() {
@@ -339,6 +494,12 @@
 
         function clearHistory() {
             if (confirm('დარწმუნებული ხართ რომ გსურთ ისტორიის წაშლა?')) {
+                // Clear from Firebase if synced
+                if (syncEnabled && userSecretCode && window.db) {
+                    const historyRef = window.dbRef(window.db, `users/${userSecretCode}/history`);
+                    window.dbRemove(historyRef);
+                }
+                // Clear local storage
                 localStorage.removeItem('wordHistory');
                 updateHistoryDisplay();
             }
@@ -375,4 +536,3 @@
     </script>
 </body>
 </html>
-
