@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Dictionary - A1 Elementary Level</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        .loader {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 min-h-screen">
+    <!-- History Toggle Button (Mobile) -->
+    <button 
+        onclick="toggleHistory()" 
+        class="fixed top-4 right-4 z-50 bg-gradient-to-r from-blue-500 to-purple-600 text-white p-3 rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 transition-all md:hidden"
+    >
+        <span class="text-2xl">📚</span>
+    </button>
+
+    <!-- History Sidebar -->
+    <div id="historySidebar" class="fixed top-0 right-0 h-full w-80 bg-white shadow-2xl transform translate-x-full transition-transform duration-300 z-40 overflow-y-auto">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+                    <span class="mr-2">📖</span>
+                    ისტორია
+                </h2>
+                <button 
+                    onclick="toggleHistory()" 
+                    class="text-gray-500 hover:text-gray-700 text-2xl"
+                >
+                    ✕
+                </button>
+            </div>
+            
+            <div class="mb-4 flex justify-between items-center">
+                <p class="text-sm text-gray-600">მოძებნილი სიტყვები</p>
+                <button 
+                    onclick="clearHistory()" 
+                    class="text-xs text-red-500 hover:text-red-700 font-semibold"
+                >
+                    წაშლა
+                </button>
+            </div>
+
+            <div id="historyList" class="space-y-2">
+                <!-- History items will be inserted here -->
+            </div>
+
+            <div id="emptyHistory" class="text-center py-8 text-gray-400">
+                <p class="text-4xl mb-2">📚</p>
+                <p>ჯერ არ მოგიძებნიათ სიტყვები</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overlay for sidebar -->
+    <div id="historyOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-30 hidden" onclick="toggleHistory()"></div>
+
+    <div class="container mx-auto px-4 py-8 md:py-12">
+        <!-- Header -->
+        <header class="text-center mb-8 md:mb-12">
+            <div class="flex items-center justify-center gap-4 mb-3">
+                <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+                    📚 English Dictionary
+                </h1>
+                <button 
+                    onclick="toggleHistory()" 
+                    class="hidden md:block bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all border-2 border-gray-200 font-semibold"
+                >
+                    📖 ისტორია
+                </button>
+            </div>
+            <p class="text-gray-600 text-lg md:text-xl">A1 Elementary Level - Learn English Simply</p>
+        </header>
+
+        <!-- Search Card -->
+        <div class="max-w-3xl mx-auto mb-8">
+            <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <input 
+                        type="text" 
+                        id="wordInput" 
+                        placeholder="Type an English word..." 
+                        class="flex-1 px-6 py-4 text-lg border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                        onkeypress="if(event.key === 'Enter') searchWord()"
+                    >
+                    <button 
+                        onclick="searchWord()" 
+                        class="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold hover:from-blue-600 hover:to-purple-700 transform hover:scale-105 transition-all shadow-lg hover:shadow-xl"
+                    >
+                        Search
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="loadingSpinner" class="hidden text-center mb-8">
+            <div class="loader mx-auto"></div>
+            <p class="text-gray-600 mt-4">Searching for definition...</p>
+        </div>
+
+        <!-- Error Message -->
+        <div id="errorMessage" class="hidden max-w-3xl mx-auto mb-8">
+            <div class="bg-red-50 border-l-4 border-red-500 rounded-lg p-6 fade-in">
+                <div class="flex items-center">
+                    <span class="text-3xl mr-3">⚠️</span>
+                    <div>
+                        <h3 class="font-bold text-red-800 text-lg">Error</h3>
+                        <p class="text-red-700" id="errorText"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Card -->
+        <div id="resultsCard" class="hidden max-w-4xl mx-auto">
+            <div class="bg-white rounded-2xl shadow-xl p-6 md:p-10 fade-in">
+                <!-- Word Title -->
+                <div class="border-b-2 border-gray-100 pb-6 mb-6">
+                    <h2 id="wordTitle" class="text-3xl md:text-4xl font-bold text-gray-800 mb-2"></h2>
+                    <span class="inline-block bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-semibold">
+                        A1 Elementary Level
+                    </span>
+                </div>
+
+                <!-- Definition Section -->
+                <div class="mb-8">
+                    <h3 class="flex items-center text-xl md:text-2xl font-semibold text-gray-700 mb-4">
+                        <span class="text-2xl mr-2">📖</span>
+                        Definition
+                    </h3>
+                    <div class="bg-blue-50 rounded-xl p-5 md:p-6">
+                        <p id="definition" class="text-gray-800 text-lg leading-relaxed"></p>
+                    </div>
+                </div>
+
+                <!-- Examples Section -->
+                <div>
+                    <h3 class="flex items-center text-xl md:text-2xl font-semibold text-gray-700 mb-4">
+                        <span class="text-2xl mr-2">💡</span>
+                        Examples
+                    </h3>
+                    <div class="space-y-4" id="examplesContainer">
+                        <!-- Examples will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="text-center mt-12 text-gray-500">
+            <p>Made with ❤️ for English learners</p>
+        </footer>
+    </div>
+
+    <script>
+        // Load history on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            updateHistoryDisplay();
+        });
+
+        async function searchWord() {
+            const wordInput = document.getElementById('wordInput');
+            const word = wordInput.value.trim().toLowerCase();
+            
+            if (!word) {
+                showError('Please enter a word to search.');
+                return;
+            }
+
+            // Show loading, hide results and errors
+            document.getElementById('loadingSpinner').classList.remove('hidden');
+            document.getElementById('resultsCard').classList.add('hidden');
+            document.getElementById('errorMessage').classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/define', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ word })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to fetch definition');
+                }
+
+                // Save to history
+                saveToHistory(word, data);
+                
+                displayResults(word, data);
+            } catch (error) {
+                showError(error.message || 'An error occurred. Please try again.');
+            } finally {
+                document.getElementById('loadingSpinner').classList.add('hidden');
+            }
+        }
+
+        function displayResults(word, data) {
+            document.getElementById('wordTitle').textContent = word.charAt(0).toUpperCase() + word.slice(1);
+            document.getElementById('definition').textContent = data.definition;
+
+            const examplesContainer = document.getElementById('examplesContainer');
+            examplesContainer.innerHTML = '';
+
+            data.examples.forEach((example, index) => {
+                const exampleDiv = document.createElement('div');
+                exampleDiv.className = 'bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-5 md:p-6 border-l-4 border-purple-400';
+                exampleDiv.innerHTML = `
+                    <div class="flex items-start">
+                        <span class="bg-purple-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4 flex-shrink-0">
+                            ${index + 1}
+                        </span>
+                        <p class="text-gray-800 text-lg leading-relaxed pt-1">${example}</p>
+                    </div>
+                `;
+                examplesContainer.appendChild(exampleDiv);
+            });
+
+            document.getElementById('resultsCard').classList.remove('hidden');
+            
+            // Scroll to results on mobile
+            if (window.innerWidth < 768) {
+                document.getElementById('resultsCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('errorText').textContent = message;
+            document.getElementById('errorMessage').classList.remove('hidden');
+        }
+
+        // History management functions
+        function saveToHistory(word, data) {
+            let history = JSON.parse(localStorage.getItem('wordHistory') || '[]');
+            
+            // Remove if word already exists
+            history = history.filter(item => item.word !== word);
+            
+            // Add to beginning of array
+            history.unshift({
+                word: word,
+                definition: data.definition,
+                examples: data.examples,
+                timestamp: new Date().toISOString()
+            });
+            
+            // Keep only last 50 words
+            history = history.slice(0, 50);
+            
+            localStorage.setItem('wordHistory', JSON.stringify(history));
+            updateHistoryDisplay();
+        }
+
+        function updateHistoryDisplay() {
+            const history = JSON.parse(localStorage.getItem('wordHistory') || '[]');
+            const historyList = document.getElementById('historyList');
+            const emptyHistory = document.getElementById('emptyHistory');
+            
+            if (history.length === 0) {
+                historyList.classList.add('hidden');
+                emptyHistory.classList.remove('hidden');
+                return;
+            }
+            
+            historyList.classList.remove('hidden');
+            emptyHistory.classList.add('hidden');
+            
+            historyList.innerHTML = history.map((item, index) => `
+                <div 
+                    class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 cursor-pointer hover:shadow-md transition-all border-l-4 border-blue-400 hover:border-purple-500"
+                    onclick="loadFromHistory(${index})"
+                >
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-gray-800 text-lg capitalize">${item.word}</h3>
+                        <span class="text-xs text-gray-500">${formatDate(item.timestamp)}</span>
+                    </div>
+                    <p class="text-sm text-gray-600 mt-1 line-clamp-2">${item.definition.substring(0, 60)}...</p>
+                </div>
+            `).join('');
+        }
+
+        function loadFromHistory(index) {
+            const history = JSON.parse(localStorage.getItem('wordHistory') || '[]');
+            const item = history[index];
+            
+            if (item) {
+                document.getElementById('wordInput').value = item.word;
+                displayResults(item.word, {
+                    definition: item.definition,
+                    examples: item.examples
+                });
+                
+                // Close history sidebar on mobile
+                if (window.innerWidth < 768) {
+                    toggleHistory();
+                }
+            }
+        }
+
+        function clearHistory() {
+            if (confirm('დარწმუნებული ხართ რომ გსურთ ისტორიის წაშლა?')) {
+                localStorage.removeItem('wordHistory');
+                updateHistoryDisplay();
+            }
+        }
+
+        function toggleHistory() {
+            const sidebar = document.getElementById('historySidebar');
+            const overlay = document.getElementById('historyOverlay');
+            
+            if (sidebar.classList.contains('translate-x-full')) {
+                sidebar.classList.remove('translate-x-full');
+                overlay.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('translate-x-full');
+                overlay.classList.add('hidden');
+            }
+        }
+
+        function formatDate(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+            
+            if (diffMins < 1) return 'ახლახან';
+            if (diffMins < 60) return `${diffMins} წუთის წინ`;
+            if (diffHours < 24) return `${diffHours} საათის წინ`;
+            if (diffDays < 7) return `${diffDays} დღის წინ`;
+            
+            return date.toLocaleDateString('ka-GE');
+        }
+    </script>
+</body>
+</html>
