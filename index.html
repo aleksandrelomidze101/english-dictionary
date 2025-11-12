@@ -489,14 +489,22 @@
             
             historyList.innerHTML = history.map((item, index) => `
                 <div 
-                    class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 cursor-pointer hover:shadow-md transition-all border-l-4 border-blue-400 hover:border-purple-500"
-                    onclick="loadFromHistory(${index})"
+                    class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 hover:shadow-md transition-all border-l-4 border-blue-400 hover:border-purple-500"
                 >
-                    <div class="flex items-center justify-between">
-                        <h3 class="font-bold text-gray-800 text-lg capitalize">${item.word}</h3>
-                        <span class="text-xs text-gray-500">${formatDate(item.timestamp)}</span>
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="font-bold text-gray-800 text-lg capitalize cursor-pointer flex-1" onclick="loadFromHistory(${index})">${item.word}</h3>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-gray-500">${formatDate(item.timestamp)}</span>
+                            <button 
+                                onclick="deleteHistoryItem(${index}, event)"
+                                class="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition-all"
+                                title="წაშლა"
+                            >
+                                <span class="text-lg">🗑️</span>
+                            </button>
+                        </div>
                     </div>
-                    <p class="text-sm text-gray-600 mt-1 line-clamp-2">${item.definition.substring(0, 60)}...</p>
+                    <p class="text-sm text-gray-600 line-clamp-2 cursor-pointer" onclick="loadFromHistory(${index})">${item.definition.substring(0, 60)}...</p>
                 </div>
             `).join('');
         }
@@ -530,6 +538,37 @@
                 localStorage.removeItem('wordHistory');
                 updateHistoryDisplay();
             }
+        }
+
+        function deleteHistoryItem(index, event) {
+            event.stopPropagation(); // Prevent triggering loadFromHistory
+            
+            const history = JSON.parse(localStorage.getItem('wordHistory') || '[]');
+            const itemToDelete = history[index];
+            
+            if (!itemToDelete) return;
+            
+            // Remove from local array
+            history.splice(index, 1);
+            localStorage.setItem('wordHistory', JSON.stringify(history));
+            
+            // Remove from Firebase if synced
+            if (syncEnabled && userSecretCode && window.db) {
+                const historyRef = window.dbRef(window.db, `users/${userSecretCode}/history`);
+                
+                // Re-sync entire history to Firebase (simplest approach)
+                window.dbRemove(historyRef).then(() => {
+                    if (history.length > 0) {
+                        const historyObj = {};
+                        history.forEach((item, idx) => {
+                            historyObj[`word_${Date.now()}_${idx}`] = item;
+                        });
+                        window.dbSet(historyRef, historyObj);
+                    }
+                });
+            }
+            
+            updateHistoryDisplay();
         }
 
         function toggleHistory() {
