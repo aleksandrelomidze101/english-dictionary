@@ -184,6 +184,15 @@
         // Load history on page load
         window.addEventListener('DOMContentLoaded', () => {
             updateHistoryDisplay();
+
+            // Check if word is in URL parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const wordFromUrl = urlParams.get('word') || urlParams.get('q');
+            
+            if (wordFromUrl) {
+                document.getElementById('wordInput').value = wordFromUrl;
+                searchWord();
+            }
         });
 
         async function searchWord() {
@@ -366,3 +375,4 @@
     </script>
 </body>
 </html>
+
