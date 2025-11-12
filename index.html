@@ -219,7 +219,16 @@
             <div class="bg-white rounded-2xl shadow-xl p-6 md:p-10 fade-in">
                 <!-- Word Title -->
                 <div class="border-b-2 border-gray-100 pb-6 mb-6">
-                    <h2 id="wordTitle" class="text-3xl md:text-4xl font-bold text-gray-800 mb-2"></h2>
+                    <div class="flex items-center gap-3 mb-2">
+                        <h2 id="wordTitle" class="text-3xl md:text-4xl font-bold text-gray-800"></h2>
+                        <button 
+                            onclick="speakWord()" 
+                            class="bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-full shadow-md hover:shadow-lg transition-all transform hover:scale-110"
+                            title="გამოთქვა"
+                        >
+                            <span class="text-2xl">🔊</span>
+                        </button>
+                    </div>
                     <span class="inline-block bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-semibold">
                         A1 Elementary Level
                     </span>
@@ -388,7 +397,25 @@
             }
         }
 
+        let currentWord = '';
+
+        function speakWord(text) {
+            const textToSpeak = text || currentWord;
+            if (!textToSpeak) return;
+            
+            // Cancel any ongoing speech
+            window.speechSynthesis.cancel();
+            
+            const utterance = new SpeechSynthesisUtterance(textToSpeak);
+            utterance.lang = 'en-US';
+            utterance.rate = 0.9; // ცოტა ნელა
+            utterance.pitch = 1;
+            
+            window.speechSynthesis.speak(utterance);
+        }
+
         function displayResults(word, data) {
+            currentWord = word;
             document.getElementById('wordTitle').textContent = word.charAt(0).toUpperCase() + word.slice(1);
             document.getElementById('definition').textContent = data.definition;
 
