@@ -374,24 +374,26 @@
                 return;
             }
 
-            // Update URL without reloading page
-            const newUrl = new URL(window.location);
-            newUrl.searchParams.set('word', word);
-            window.history.pushState({}, '', newUrl);
-
             // Show loading, hide results and errors
             document.getElementById('loadingSpinner').classList.remove('hidden');
             document.getElementById('resultsCard').classList.add('hidden');
             document.getElementById('errorMessage').classList.add('hidden');
 
             try {
+                // Add timeout to fetch request (30 seconds)
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000);
+
                 const response = await fetch('/api/define', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ word })
+                    body: JSON.stringify({ word }),
+                    signal: controller.signal
                 });
+
+                clearTimeout(timeoutId);
 
                 const data = await response.json();
 
@@ -399,13 +401,22 @@
                     throw new Error(data.error || 'Failed to fetch definition');
                 }
 
+                // Only update URL and save to history after successful response
+                const newUrl = new URL(window.location);
+                newUrl.searchParams.set('word', word);
+                window.history.pushState({}, '', newUrl);
+
                 // Save to history with corrected word if available
                 const wordToSave = data.correctedWord || word;
                 saveToHistory(wordToSave, data);
                 
                 displayResults(word, data);
             } catch (error) {
-                showError(error.message || 'An error occurred. Please try again.');
+                if (error.name === 'AbortError') {
+                    showError('Request timeout. The API is taking too long to respond. Please try again.');
+                } else {
+                    showError(error.message || 'An error occurred. Please try again.');
+                }
             } finally {
                 document.getElementById('loadingSpinner').classList.add('hidden');
             }
