@@ -3,7 +3,7 @@ const express = require('express');
 const path = require('path');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(express.static(__dirname));
@@ -17,6 +17,8 @@ app.post('/api/define', async (req, res) => {
     }
 
     const prompt = `Give me a simple A1 Elementary level English definition for the word "${word}" and provide exactly 3 simple, easy-to-understand example sentences using this word. 
+
+If the word "${word}" is misspelled or does not exist, find the correct spelling and provide the definition for the correct word. Start your response with "Did you mean: [correct word]?" if you corrected the spelling.
 
 Format your response EXACTLY like this:
 Definition: [simple definition here]
@@ -84,6 +86,13 @@ Examples:
 // Helper function to parse the AI response
 function parseResponse(content) {
     try {
+        // Check if AI corrected the spelling
+        let correctedWord = null;
+        const correctionMatch = content.match(/Did you mean:?\s*["\']?([a-zA-Z]+)["\']?/i);
+        if (correctionMatch) {
+            correctedWord = correctionMatch[1];
+        }
+
         // Extract definition
         const defMatch = content.match(/Definition:\s*(.+?)(?=Examples:|$)/is);
         const definition = defMatch ? defMatch[1].trim() : '';
@@ -108,10 +117,17 @@ function parseResponse(content) {
             examples.push('Example not available.');
         }
 
-        return {
+        const result = {
             definition: definition || 'Definition not found.',
             examples: examples.slice(0, 3)
         };
+
+        // Add corrected word if spelling was fixed
+        if (correctedWord) {
+            result.correctedWord = correctedWord;
+        }
+
+        return result;
     } catch (error) {
         console.error('Error parsing content:', error);
         return {
