@@ -399,8 +399,9 @@
                     throw new Error(data.error || 'Failed to fetch definition');
                 }
 
-                // Save to history
-                saveToHistory(word, data);
+                // Save to history with corrected word if available
+                const wordToSave = data.correctedWord || word;
+                saveToHistory(wordToSave, data);
                 
                 displayResults(word, data);
             } catch (error) {
