@@ -478,6 +478,15 @@
 
         // History management functions
         function saveToHistory(word, data) {
+            // Check if word already exists in history
+            let history = JSON.parse(localStorage.getItem('wordHistory') || '[]');
+            const existingIndex = history.findIndex(item => item.word.toLowerCase() === word.toLowerCase());
+            
+            // If word exists, remove it (we'll add it to top)
+            if (existingIndex !== -1) {
+                history.splice(existingIndex, 1);
+            }
+            
             const newItem = {
                 word: word,
                 definition: data.definition,
@@ -485,16 +494,20 @@
                 timestamp: new Date().toISOString()
             };
             
+            // Add to beginning of array
+            history.unshift(newItem);
+            history = history.slice(0, 50);
+            
             // If Firebase sync is enabled, save to Firebase
             if (syncEnabled && userSecretCode && window.db) {
-                const itemRef = window.dbRef(window.db, `users/${userSecretCode}/history/word_${Date.now()}`);
-                window.dbSet(itemRef, newItem);
+                const historyRef = window.dbRef(window.db, `users/${userSecretCode}/history`);
+                const historyObj = {};
+                history.forEach((item, idx) => {
+                    historyObj[`word_${Date.now()}_${idx}`] = item;
+                });
+                window.dbSet(historyRef, historyObj);
             } else {
-                // Fallback to localStorage only
-                let history = JSON.parse(localStorage.getItem('wordHistory') || '[]');
-                history = history.filter(item => item.word !== word);
-                history.unshift(newItem);
-                history = history.slice(0, 50);
+                // Save to localStorage only
                 localStorage.setItem('wordHistory', JSON.stringify(history));
                 updateHistoryDisplay();
             }
